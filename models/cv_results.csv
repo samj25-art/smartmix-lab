@@ -1,0 +1,4 @@
+model,cv_rmse,best_params
+Hist Gradient Boosting,4.463611391044271,"{'l2_regularization': 0.0, 'learning_rate': 0.1, 'max_iter': 200, 'max_leaf_nodes': 15}"
+Random Forest,5.471273378361531,"{'max_depth': 20, 'min_samples_leaf': 1, 'n_estimators': 150}"
+Linear Regression,10.224842456814665,{}

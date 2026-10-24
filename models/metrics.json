@@ -1,0 +1,157 @@
+{
+  "trained": true,
+  "trained_at_utc": "2026-10-24T19:09:50+00:00",
+  "selected_model": "Hist Gradient Boosting",
+  "selected_params": {
+    "l2_regularization": 0.0,
+    "learning_rate": 0.1,
+    "max_iter": 200,
+    "max_leaf_nodes": 15
+  },
+  "dataset_rows_raw": 1030,
+  "dataset_rows_used": 1030,
+  "rows_excluded": 0,
+  "n_train": 824,
+  "n_test": 206,
+  "duplicate_rows_in_data": 25,
+  "test_size": 0.2,
+  "cv_folds": 5,
+  "seed": 42,
+  "dataset_sha256": "a34efac0bf38a06f0a5b2e628a460fcfa4faef83d01863880704bdfb02739255",
+  "features": [
+    "cement",
+    "slag",
+    "fly_ash",
+    "water",
+    "superplasticizer",
+    "coarse_agg",
+    "fine_agg",
+    "age"
+  ],
+  "target": "strength",
+  "units": "kg/m3 (age in days) -> MPa",
+  "training_ranges": {
+    "cement": [
+      102.0,
+      540.0
+    ],
+    "slag": [
+      0.0,
+      359.4
+    ],
+    "fly_ash": [
+      0.0,
+      200.1
+    ],
+    "water": [
+      121.75,
+      247.0
+    ],
+    "superplasticizer": [
+      0.0,
+      32.2
+    ],
+    "coarse_agg": [
+      801.0,
+      1145.0
+    ],
+    "fine_agg": [
+      594.0,
+      992.6
+    ],
+    "age": [
+      1.0,
+      365.0
+    ]
+  },
+  "strength_range": [
+    2.331807832,
+    82.5992248
+  ],
+  "test_metrics": {
+    "MAE_MPa": 2.804890470271723,
+    "RMSE_MPa": 4.348390185435936,
+    "R2": 0.9401014786354353
+  },
+  "test_metrics_all_models_for_information": {
+    "Linear Regression": {
+      "MAE_MPa": 9.162465102832686,
+      "RMSE_MPa": 11.500175046242038,
+      "R2": 0.5810444097300075
+    },
+    "Random Forest": {
+      "MAE_MPa": 3.4261303419215348,
+      "RMSE_MPa": 5.1817473590780105,
+      "R2": 0.9149427068951669
+    },
+    "Hist Gradient Boosting": {
+      "MAE_MPa": 2.804890470271723,
+      "RMSE_MPa": 4.348390185435936,
+      "R2": 0.9401014786354353
+    }
+  },
+  "cv_results": [
+    {
+      "model": "Linear Regression",
+      "cv_rmse": 10.224842456814665,
+      "best_params": {}
+    },
+    {
+      "model": "Random Forest",
+      "cv_rmse": 5.471273378361531,
+      "best_params": {
+        "max_depth": 20,
+        "min_samples_leaf": 1,
+        "n_estimators": 150
+      }
+    },
+    {
+      "model": "Hist Gradient Boosting",
+      "cv_rmse": 4.463611391044271,
+      "best_params": {
+        "l2_regularization": 0.0,
+        "learning_rate": 0.1,
+        "max_iter": 200,
+        "max_leaf_nodes": 15
+      }
+    }
+  ],
+  "residual_quantiles_test": {
+    "q05": -5.766684530037936,
+    "q95": 6.4641928386099465
+  },
+  "versions": {
+    "sklearn": "1.9.1",
+    "python": "3.12.4",
+    "pandas": "3.1.0",
+    "numpy": "2.5.4"
+  },
+  "data_quality": {
+    "duplicate_rows": 25,
+    "missing_values": {
+      "cement": 0,
+      "slag": 0,
+      "fly_ash": 0,
+      "water": 0,
+      "superplasticizer": 0,
+      "coarse_agg": 0,
+      "fine_agg": 0,
+      "age": 0,
+      "strength": 0
+    },
+    "iqr_outlier_counts": {
+      "cement": 0,
+      "slag": 2,
+      "fly_ash": 0,
+      "water": 9,
+      "superplasticizer": 10,
+      "coarse_agg": 0,
+      "fine_agg": 5,
+      "age": 59,
+      "strength": 4
+    },
+    "problems": [
+      "25 duplicate rows found. They are kept, but identical rows are forced into the same train/test side to avoid leakage."
+    ]
+  }
+}
