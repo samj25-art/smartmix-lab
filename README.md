@@ -22,7 +22,7 @@ venv\Scripts\activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
-The browser opens at http://localhost:8501.
+The browser opens at https://smartmix-lab.streamlit.app/.
 
 ## 2. Get the dataset and train the model
 
