@@ -19,15 +19,17 @@ from src import constants as C  # noqa: E402
 from src.data_loading import (DatasetInvalid, DatasetUnavailable, data_quality_report,  # noqa: E402
                               load_dataset, read_any, standardise, DEFAULT_CSV, try_download)
 from src.engineering import (MixInputs, ScmInput, design_mix, result_to_ml_features)  # noqa: E402
-from src.model_training import MODEL_DIR, TrainingError, model_status, train_and_save  # noqa: E402
+from src.model_training import MODEL_DIR, TrainingError, ensure_model, model_status, train_and_save  # noqa: E402
 from src.prediction import ModelNotTrained, predict_strength  # noqa: E402
+from src.lwac_ui import render_leca_page  # noqa: E402
+from src.mix_types import MIX_TYPES  # noqa: E402
 from src.report import build_pdf, new_report_id, results_csv_bytes  # noqa: E402
 from src.validation import InputError  # noqa: E402
 from src.workbook_replica import AUDIT_FINDINGS, run_workbook_logic  # noqa: E402
 
 st.set_page_config(page_title="AI Concrete Mix Design", page_icon="🏗️", layout="wide")
 
-PAGES = ["🏠 Home", "📝 Mix Input", "🧮 Engineering Calculator", "🤖 AI Model (train / evaluate)",
+PAGES = ["🏠 Home", "🪶 LECA Lightweight Concrete", "📝 Mix Input", "🧮 Engineering Calculator", "🤖 AI Model (train / evaluate)",
          "🔮 AI Strength Prediction", "⚖️ Candidate Comparison", "📊 Results & Reports",
          "🔎 Workbook Audit"]
 
@@ -65,23 +67,48 @@ def page_home():
     st.title("🏗️ AI-Based Software Interface for Concrete Mix Design")
     st.caption("Government College of Engineering, Amravati - Department of Civil Engineering - Minor Project")
     st.warning(DISCLAIMER)
-
-    c1, c2, c3 = st.columns(3)
     status = model_status()
+
+    # ---- headline model results (pre-trained model that ships with the app)
+    c1, c2, c3 = st.columns(3)
     c1.metric("ML model", "Trained" if status.get("trained") else "NOT trained")
     if status.get("trained"):
         m = status["test_metrics"]
         c2.metric("Test RMSE (MPa)", f"{m['RMSE_MPa']:.2f}")
         c3.metric("Test R²", f"{m['R2']:.3f}")
-    else:
-        c2.metric("Test RMSE (MPa)", "-")
-        c3.metric("Test R²", "-")
-        st.info("No model has been trained yet, so **no accuracy figures exist**. Go to "
-                "**AI Model** to train on the UCI dataset.")
-    if status.get("trained"):
         st.caption(f"Selected: **{status['selected_model']}** · trained {status['trained_at_utc']} UTC · "
                    f"{status['dataset_rows_used']} rows used ({status['n_train']} train / {status['n_test']} test) "
                    "· metrics are from the held-out test set.")
+        c4, c5, c6 = st.columns(3)
+        c4.metric("Test MAE (MPa)", f"{m['MAE_MPa']:.2f}")
+        c5.metric("~90 % error band (MPa)",
+                  f"{status['residual_quantiles_test']['q05']:+.1f} / {status['residual_quantiles_test']['q95']:+.1f}")
+        c6.metric("Best CV RMSE (MPa)", f"{min(r['cv_rmse'] for r in status['cv_results']):.2f}")
+        st.success("The model is **pre-trained** - open **AI Strength Prediction** and predict straight away. "
+                   "Re-training is optional (AI Model page).")
+        with st.expander("Training summary - how these numbers were obtained", expanded=True):
+            st.markdown(
+                f"- **Data:** UCI Concrete Compressive Strength, {status['dataset_rows_raw']} laboratory mixes "
+                f"(8 inputs → compressive strength in MPa). {status['rows_excluded']} rows excluded as invalid.\n"
+                f"- **Split:** {status['n_train']} train / {status['n_test']} test (80/20, seed {status['seed']}); "
+                f"identical duplicate rows ({status['duplicate_rows_in_data']} in the file) are kept on the same side, "
+                "so the test score is not inflated by leakage.\n"
+                "- **Selection:** Linear Regression, Random Forest and Hist Gradient Boosting were compared by 5-fold "
+                "grouped cross-validation on the **training part only**; the test set was used **once** afterwards.")
+            cmp_ = pd.DataFrame(status["test_metrics_all_models_for_information"]).T.rename(
+                columns={"MAE_MPa": "Test MAE (MPa)", "RMSE_MPa": "Test RMSE (MPa)", "R2": "Test R²"})
+            cv = pd.DataFrame(status["cv_results"]).set_index("model")["cv_rmse"].rename("CV RMSE (MPa)")
+            cmp_ = cmp_.join(cv).round(3)
+            cmp_["Selected"] = ["✅" if i == status["selected_model"] else "" for i in cmp_.index]
+            st.dataframe(cmp_)
+            rng = status["training_ranges"]
+            st.caption("Valid input range of the model (inside this range predictions are interpolations): " +
+                       " · ".join(f"{C.FEATURE_LABELS[f]} {rng[f][0]:g}-{rng[f][1]:g}" for f in C.FEATURES))
+    else:
+        c2.metric("Test RMSE (MPa)", "-")
+        c3.metric("Test R²", "-")
+        st.error("The pre-trained model could not be loaded and no dataset was found, so **no accuracy figures exist**. "
+                 "Go to **AI Model** and upload the UCI dataset.")
 
     st.subheader("Objectives")
     st.markdown("""
@@ -95,26 +122,45 @@ def page_home():
 ```
 Mix Input ─► Engineering Calculator (IS 10262, deterministic) ─► quantities + code checks ─┐
      │                                                                                     ├─► Results & PDF/CSV
-     └────► AI Strength Prediction (UCI-trained model, 8 inputs) ─► MPa + uncertainty ──────┘
+     └────► AI Strength Prediction (pre-trained model, 8 inputs) ─► MPa + uncertainty ─────┘
                          ▲
-        AI Model page: load data → validate → split → cross-validate → test once → save
+   Pre-trained at build time:  load data → validate → split → cross-validate → test once → save
+   (AI Model page = optional re-training / inspection)
 ```
 """)
     st.subheader("Modules")
     st.table(pd.DataFrame({
-        "Module": ["Mix Input", "Engineering Calculator", "AI Model", "AI Strength Prediction",
-                   "Candidate Comparison (experimental)", "Results & Reports", "Workbook Audit"],
+        "Module": ["Mix Input", "Engineering Calculator", "LECA Lightweight Concrete", "AI Model",
+                   "AI Strength Prediction", "Candidate Comparison (experimental)", "Results & Reports",
+                   "Workbook Audit"],
+        "Type": ["Input", "Deterministic (IS 10262:2019)", "Deterministic (absolute volume)", "Machine learning",
+                 "Machine learning", "ML + user table", "Output", "Check"],
         "Purpose": ["Collect inputs, show which feed which module",
-                    "IS 10262 Sections 2-3: target strength, w/c, water, binder, aggregates, corrections",
-                    "Train / compare / evaluate Linear, Random Forest, Hist-GB",
-                    "Predict MPa from 8 mix features + age, with range warnings",
+                    "Target strength, w/c, water, binder, aggregates, corrections, checks, step-by-step trace",
+                    "LECA mix by absolute-volume balance (assumptions flagged)",
+                    "Shows the pre-trained model's results; optional re-training and evaluation",
+                    "Predict compressive strength (MPa) at the entered age from 8 mix values, with range warnings",
                     "Compare user-entered candidate mixes (no automatic 'best' claim)",
                     "Dashboard, CSV, PDF", "Compare your Excel workbook against the IS-based calculator"]}))
-    st.subheader("What this tool does NOT do")
-    st.markdown("- It does not predict slump, durability or permeability.\n"
-                "- Self-compacting and mass concrete (IS 10262 Sections 4-5) are not implemented.\n"
-                "- The AI model does not 'design' mixes and is not IS-compliant by itself.\n"
-                "- IS 456:2000 limits are not in the supplied files → flagged for verification.")
+    st.subheader("Limitations - please read")
+    lim = ["**Not a design approval.** Output must be confirmed by trial mixes and laboratory tests (always shown as NOT DONE).",
+           "**ML is an estimate, not a design method.** It does not design mixes and is not IS-compliant by itself."]
+    if status.get("trained"):
+        q = status["residual_quantiles_test"]
+        lim.append(f"**Accuracy is limited:** typical error ≈ {status['test_metrics']['MAE_MPa']:.1f} MPa (MAE), "
+                   f"RMSE {status['test_metrics']['RMSE_MPa']:.1f} MPa, ~90 % of test errors lie between "
+                   f"{q['q05']:+.1f} and {q['q95']:+.1f} MPa. Single mixes can be worse.")
+        lim.append(f"**Trained on {status['dataset_rows_raw']} laboratory mixes only:** your cement, aggregates, curing and "
+                   "testing will differ. Inputs outside the training range are flagged and not reliable.")
+    lim += ["**Only 8 inputs:** cement, slag, fly ash, water, superplasticizer, coarse & fine aggregate, age. No silica fume, "
+            "metakaolin, cement grade, admixture type, aggregate shape or curing regime.",
+            "**Does not predict** slump, durability, permeability or lightweight (LECA) strength.",
+            "**Not implemented:** self-compacting and mass concrete (IS 10262 Sections 4-5), air-entrained concrete.",
+            "**IS 456:2000 limits** were not supplied, so durability limits are shown as *verify*. IS 10262 Fig. 1 w/c is "
+            "estimated for OPC 43 / PPC; for OPC 33 / 53 you enter the chart value.",
+            "**HPC_DATA.csv was not used for training:** about 60 % of its rows are identical to UCI rows and roughly 30 % more are "
+            "near-duplicates of them, so using it would leak test data and overstate accuracy."]
+    st.markdown("\n".join(f"- {x}" for x in lim))
 
 
 def _scm_inputs():
@@ -301,6 +347,9 @@ def page_model():
     st.title("🤖 AI Model - train and evaluate")
     st.caption("Dataset: UCI Concrete Compressive Strength (1030 lab mixes). Source: " + C.UCI_PAGE)
     status = model_status()
+    if status.get("trained"):
+        st.success("A **pre-trained model is already loaded** (results in section 3). Re-training below is optional "
+                   "and **replaces** the saved model.")
 
     st.subheader("1 · Dataset")
     df = None
@@ -413,6 +462,9 @@ def page_prediction():
     if not status.get("trained"):
         st.error("**The model is not trained.** Train it on the *AI Model* page first. No prediction is possible.")
         return
+    st.success(f"Using the **pre-trained {status['selected_model']}** model - test R² {status['test_metrics']['R2']:.3f}, "
+               f"RMSE {status['test_metrics']['RMSE_MPa']:.2f} MPa, MAE {status['test_metrics']['MAE_MPa']:.2f} MPa "
+               f"(held-out test set of {status['n_test']} mixes).")
     st.info("Prediction uses **only** the 8 trained features. It does not predict slump, durability or "
             "permeability, and it is not a guaranteed 28-day strength - the strength is for the **curing age "
             "you enter**.")
@@ -621,7 +673,16 @@ def page_audit():
 
 
 # ------------------------------------------------------------------------------ router
+@st.cache_resource(show_spinner="Loading the pre-trained model (re-trains once only if it cannot be loaded) ...")
+def _startup_model():
+    try:
+        return ensure_model()
+    except Exception as e:  # noqa: BLE001
+        return {"trained": False, "error": str(e)}
+
+
 def main():
+    _startup_model()
     ss_init()
     st.sidebar.title("🏗️ Concrete Mix AI")
     page = st.sidebar.radio("Navigate", PAGES)
@@ -629,7 +690,8 @@ def main():
     {"🏠 Home": page_home, "📝 Mix Input": page_mix_input, "🧮 Engineering Calculator": page_calculator,
      "🤖 AI Model (train / evaluate)": page_model, "🔮 AI Strength Prediction": page_prediction,
      "⚖️ Candidate Comparison": page_candidates, "📊 Results & Reports": page_results,
-     "🔎 Workbook Audit": page_audit}[page]()
+     "🔎 Workbook Audit": page_audit,
+     "🪶 LECA Lightweight Concrete": render_leca_page}[page]()
 
 
 main()

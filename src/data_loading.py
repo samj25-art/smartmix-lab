@@ -34,14 +34,14 @@ class DatasetInvalid(ValueError):
 
 # keyword -> standard name (matched on lower-cased original header)
 _COLUMN_RULES = [
-    (r"blast|slag", "slag"),
+    (r"blast|slag|ggbs|ggbfs", "slag"),
     (r"fly\s*ash", "fly_ash"),
-    (r"superplast", "superplasticizer"),
+    (r"superplast|^sp\b|^sp\s*\(", "superplasticizer"),
     (r"coarse", "coarse_agg"),
     (r"fine", "fine_agg"),
     (r"^cement|cement\s*\(", "cement"),
     (r"^water|water\s*\(", "water"),
-    (r"^age|age\s*\(", "age"),
+    (r"^age|age\s*\(|age of", "age"),
     (r"strength", "strength"),
 ]
 
@@ -50,7 +50,7 @@ def clean_column_names(columns) -> Dict[str, str]:
     """Map arbitrary UCI/Kaggle-style headers to the standard feature names."""
     mapping = {}
     for col in columns:
-        low = str(col).strip().lower()
+        low = re.sub(r"\s+", " ", str(col).strip().lower())
         for pattern, std in _COLUMN_RULES:
             if re.search(pattern, low):
                 mapping[col] = std

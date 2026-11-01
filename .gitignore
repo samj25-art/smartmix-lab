@@ -1,7 +1,4 @@
 venv/
-.venv/
 __pycache__/
-*.py[cod]
-.pytest_cache/
-.env
+*.pyc
 reports_out/

@@ -1,14 +1,17 @@
 # AI-Based Software Interface for Concrete Mix Design
 
 Streamlit prototype for the minor project (GCOE Amravati, Civil Engineering).
-Two **separate** engines:
+Three **separate** engines (v2 adds the LECA lightweight module):
 
 | Engine | What it does | Files |
 |---|---|---|
 | **Engineering calculator** (deterministic) | IS 10262:2019 procedure, Sections 2-3 (M10-M100): target strength, w/c, water, binder, SCM, aggregates, admixture, moisture correction, checks, step-by-step trace | `src/engineering.py`, `src/constants.py` |
+| **LECA lightweight concrete** (deterministic) | Absolute-volume balance on oven-dry particle SG, net vs absorption water split, fine/coarse by density closure, batch quantities, checks, trace. Method: `docs/LECA_METHOD.md` | `src/lwac.py`, `src/lwac_ui.py`, `src/mix_types.py` |
 | **ML strength predictor** | Linear / Random Forest / Hist-GB trained on the public UCI dataset (8 inputs → compressive strength, MPa) | `src/data_loading.py`, `src/model_training.py`, `src/prediction.py` |
 
 The AI model does **not** design mixes and is **not** IS-compliant by itself. This is a research prototype - not a substitute for trial mixes and laboratory testing.
+
+**LECA app:** `run_leca.bat` / `streamlit run leca_app.py` (stand-alone) or the "LECA Lightweight Concrete" page of the main app. Python use: `from src.lwac import design_leca_mix_simple`. LECA defaults marked ASSUMPTION are not code values - no LWAC code was supplied; the Streamlit page was exercised only against a stub (Streamlit not installable offline). Unit tests: `tests/test_lwac.py`.
 
 ## 1. Windows setup (beginner)
 
@@ -22,16 +25,27 @@ venv\Scripts\activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
-The browser opens at https://smartmix-lab.streamlit.app/.
+The browser opens at http://localhost:8501.
 
-## 2. Get the dataset and train the model
+## 2. The model is PRE-TRAINED (nothing to do before first use)
 
-* Download **Concrete_Data.xls** (or the zip) from https://archive.ics.uci.edu/dataset/165/concrete+compressive+strength
-* In the app: **AI Model → upload the file → Train and evaluate**. (Or put it at `data/concrete_data.csv`, or run `python train_model.py path\to\Concrete_Data.xls`.)
-* The app also *tries* an automatic download when internet is available; if it fails you get a clear message and the upload box.
-* Until training succeeds the app says **"Model not trained"** and shows no accuracy numbers. All metrics shown later are computed from the held-out test set - quote them from the app, not from anywhere else.
+`models/` already contains a model trained on the real UCI file (`data/concrete_data.csv`, 1030 lab mixes):
 
-Training protocol: duplicate-safe 80/20 split (seed 42) → 5-fold grouped CV + small grid search on the training part only → best CV-RMSE model chosen → test set used once for MAE / RMSE / R² → actual-vs-predicted, residual and permutation-importance plots → saved to `models/` with joblib.
+| Item | Value |
+|---|---|
+| Selected model | Hist Gradient Boosting (chosen by 5-fold grouped CV on the training part only) |
+| Split | 824 train / 206 test (80/20, seed 42, duplicates kept on one side) |
+| Held-out test R² / RMSE / MAE | **0.939 / 4.37 MPa / 2.62 MPa** |
+| Other candidates (test R²) | Random Forest 0.915, Linear Regression 0.581 |
+
+These numbers appear on the **Home** page and the **AI Model** page and are read from `models/metrics.json` - never typed in.
+If you re-train (AI Model page or `python train_model.py`) the numbers change slightly with scikit-learn version and data.
+
+**If the saved model cannot be loaded on your PC** (usually a different scikit-learn version) the app re-trains once at start-up
+from `data/concrete_data.csv` (about 1 minute) and continues - you do not need to do anything.
+
+`HPC_DATA.csv` is **not** used: about 60 % of its rows are identical to UCI rows and ~30 % more are near-duplicates, so it
+cannot serve as independent test data and would inflate accuracy if merged.
 
 ## 3. Typical demo flow
 
@@ -53,11 +67,10 @@ Run `run_tests.bat` or `python -m unittest discover -s tests -t .` (32 tests; no
 ## 5. NOT verified / known limitations - read before presenting
 
 * **The Streamlit UI was never launched in the build environment** (no internet, Streamlit not installable). All eight pages were executed against a stand-in for the Streamlit API to catch Python errors, but layout and widget behaviour on real Streamlit are untested. Expect to fix small UI issues on first run - tell me the traceback.
-* **The UCI dataset was not downloaded or trained on here.** No real metrics exist yet. Full-mode training time on a laptop is unmeasured (use *Fast mode* for demos).
-* The automatic download URL is untested; upload fallback is provided.
+* The pre-trained metrics above are real (UCI file, full-mode training took ~45 s on the build machine). They describe accuracy on **this public lab dataset**, not on your own materials.
 * **IS 456:2000 was not supplied.** Durability limits (max w/c, minimum binder, 450 kg/m³ max cement) are shown as "verify". Only 0.45/320 (severe, RC) and 0.60/240 (moderate, plain) are confirmed indirectly by the IS 10262 examples. Check `IS456_*` in `src/constants.py` against the code.
 * **Fig. 1 (w/c vs strength)** cannot be read exactly from the PDF. For OPC 43/PPC the app interpolates between three points printed in the standard's examples (48.25→0.36, 38.25→0.43, 20.77→0.61) and flags it as an estimate; OPC 33/53 require you to enter the w/c read from the printed chart. Table 8 (high strength) is interpolated linearly.
-* Not implemented: self-compacting concrete (Section 4), mass concrete (Section 5), air-entrained, lightweight aggregate, early-strength adjustments.
+* Not implemented: self-compacting concrete (Section 4), mass concrete (Section 5), air-entrained, early-strength adjustments.
 * ML model limits: lab data (1030 mixes), no silica fume/metakaolin column, no aggregate shape, cement grade or admixture type; UCI `superplasticizer` is assumed to be kg/m³ of admixture. Predictions outside the training range are flagged, but even inside the range the ~90 % band is only an empirical guide.
 * VBA: `vbaProject.bin` exists but no custom macro source could be extracted offline - the workbook's macros were not reviewed.
 * Trial mixes and lab verification are always reported as **NOT DONE**.

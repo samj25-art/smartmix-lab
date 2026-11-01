@@ -1,11 +1,11 @@
 {
   "trained": true,
-  "trained_at_utc": "2026-10-24T19:09:50+00:00",
+  "trained_at_utc": "2026-11-01T11:05:48+00:00",
   "selected_model": "Hist Gradient Boosting",
   "selected_params": {
-    "l2_regularization": 0.0,
+    "l2_regularization": 1.0,
     "learning_rate": 0.1,
-    "max_iter": 200,
+    "max_iter": 300,
     "max_leaf_nodes": 15
   },
   "dataset_rows_raw": 1030,
@@ -17,7 +17,7 @@
   "test_size": 0.2,
   "cv_folds": 5,
   "seed": 42,
-  "dataset_sha256": "a34efac0bf38a06f0a5b2e628a460fcfa4faef83d01863880704bdfb02739255",
+  "dataset_sha256": "57c47e3dd7279a2d83a8f1801964d287bd628959a15c22d2fb62634520d7c3b8",
   "features": [
     "cement",
     "slag",
@@ -44,7 +44,7 @@
       200.1
     ],
     "water": [
-      121.75,
+      121.8,
       247.0
     ],
     "superplasticizer": [
@@ -65,60 +65,60 @@
     ]
   },
   "strength_range": [
-    2.331807832,
-    82.5992248
+    2.33,
+    82.6
   ],
   "test_metrics": {
-    "MAE_MPa": 2.804890470271723,
-    "RMSE_MPa": 4.348390185435936,
-    "R2": 0.9401014786354353
+    "MAE_MPa": 2.774090027320837,
+    "RMSE_MPa": 4.267467276973561,
+    "R2": 0.9423101841448688
   },
   "test_metrics_all_models_for_information": {
     "Linear Regression": {
-      "MAE_MPa": 9.162465102832686,
-      "RMSE_MPa": 11.500175046242038,
-      "R2": 0.5810444097300075
+      "MAE_MPa": 9.161801703200082,
+      "RMSE_MPa": 11.499384925338417,
+      "R2": 0.5811022992020789
     },
     "Random Forest": {
-      "MAE_MPa": 3.4261303419215348,
-      "RMSE_MPa": 5.1817473590780105,
-      "R2": 0.9149427068951669
+      "MAE_MPa": 3.446152753505944,
+      "RMSE_MPa": 5.1715399204152455,
+      "R2": 0.9152775480117525
     },
     "Hist Gradient Boosting": {
-      "MAE_MPa": 2.804890470271723,
-      "RMSE_MPa": 4.348390185435936,
-      "R2": 0.9401014786354353
+      "MAE_MPa": 2.774090027320837,
+      "RMSE_MPa": 4.267467276973561,
+      "R2": 0.9423101841448688
     }
   },
   "cv_results": [
     {
       "model": "Linear Regression",
-      "cv_rmse": 10.224842456814665,
+      "cv_rmse": 10.224159359719488,
       "best_params": {}
     },
     {
       "model": "Random Forest",
-      "cv_rmse": 5.471273378361531,
+      "cv_rmse": 5.507074739167807,
       "best_params": {
-        "max_depth": 20,
+        "max_depth": null,
         "min_samples_leaf": 1,
-        "n_estimators": 150
+        "n_estimators": 300
       }
     },
     {
       "model": "Hist Gradient Boosting",
-      "cv_rmse": 4.463611391044271,
+      "cv_rmse": 4.453413189000115,
       "best_params": {
-        "l2_regularization": 0.0,
+        "l2_regularization": 1.0,
         "learning_rate": 0.1,
-        "max_iter": 200,
+        "max_iter": 300,
         "max_leaf_nodes": 15
       }
     }
   ],
   "residual_quantiles_test": {
-    "q05": -5.766684530037936,
-    "q95": 6.4641928386099465
+    "q05": -5.174510331964328,
+    "q95": 5.890162049980859
   },
   "versions": {
     "sklearn": "1.9.1",

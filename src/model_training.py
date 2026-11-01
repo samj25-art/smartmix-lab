@@ -163,3 +163,30 @@ def model_status(model_dir: Path = MODEL_DIR) -> Dict[str, object]:
         return meta if meta.get("trained") else {"trained": False}
     except Exception:  # noqa: BLE001
         return {"trained": False, "error": "metrics.json unreadable"}
+
+
+def model_is_usable(model_dir: Path = MODEL_DIR) -> bool:
+    """True if the saved model exists, loads with THIS scikit-learn, and matches the feature schema."""
+    try:
+        f = Path(model_dir) / "model.joblib"
+        if not f.exists():
+            return False
+        bundle = joblib.load(f)
+        meta = bundle["meta"]
+        bundle["pipeline"].predict(pd.DataFrame([[300, 0, 0, 180, 0, 1000, 800, 28]], columns=C.FEATURES))
+        return meta.get("features") == C.FEATURES and bool(meta.get("trained"))
+    except Exception:  # noqa: BLE001 - e.g. scikit-learn version mismatch
+        return False
+
+
+def ensure_model(model_dir: Path = MODEL_DIR, progress: Optional[Callable[[str], None]] = None) -> Dict[str, object]:
+    """Use the PRE-TRAINED model shipped in models/. Only if it cannot be loaded (typically a different
+    scikit-learn version on your PC) re-train once from the bundled data/concrete_data.csv with the same
+    protocol and seed. Never fabricates anything: with no data and no loadable model it reports 'not trained'."""
+    if model_is_usable(model_dir):
+        return model_status(model_dir)
+    from .data_loading import DEFAULT_CSV, load_dataset
+    if DEFAULT_CSV.exists():
+        (progress or (lambda m: None))("Saved model could not be loaded here - re-training once from the bundled dataset ...")
+        train_and_save(load_dataset(allow_download=False), model_dir=model_dir, progress=progress)
+    return model_status(model_dir)

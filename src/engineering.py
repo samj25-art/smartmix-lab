@@ -5,7 +5,7 @@ IS 10262:2019 (Sections 2 and 3: ordinary/standard grades M10-M60 and high stren
 This module is completely independent of the machine-learning model.
 
 Not covered (flagged in the UI): self-compacting concrete (Section 4), mass concrete
-(Section 5), air-entrained concrete, lightweight aggregate, early-strength adjustments.
+(Section 5), air-entrained concrete, early-strength adjustments. (Lightweight aggregate: see src/lwac.py.)
 
 Every number is returned together with the formula / source that produced it
 (see MixResult.steps) so it can be traced in the report.

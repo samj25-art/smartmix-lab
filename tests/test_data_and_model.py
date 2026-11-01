@@ -112,3 +112,23 @@ class TestModel(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestShippedPretrainedModel(unittest.TestCase):
+    """The model in models/ was trained on the REAL UCI file (data/concrete_data.csv)."""
+
+    def test_shipped_model_loads_and_predicts(self):
+        from src.model_training import model_is_usable, model_status
+        from src.prediction import predict_strength
+        if not model_is_usable():
+            self.skipTest("shipped model not loadable with this scikit-learn (the app re-trains it on start)")
+        st = model_status()
+        self.assertGreater(st["test_metrics"]["R2"], 0.85)
+        p = predict_strength(dict(cement=336, slag=0, fly_ash=0, water=182, superplasticizer=3,
+                                  coarse_agg=986, fine_agg=817, age=28))
+        self.assertTrue(20 < p.strength_mpa < 70)
+
+    def test_hpc_headers_are_recognised(self):
+        from src.data_loading import clean_column_names
+        m = clean_column_names(["Cement\n(kg/m3)", "GGBS\n(kg/m3)", "sp\n(kg/m3)", "Age of testing\n(day)"])
+        self.assertEqual(sorted(m.values()), ["age", "cement", "slag", "superplasticizer"])
