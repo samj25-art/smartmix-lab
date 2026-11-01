@@ -2,3 +2,6 @@ venv/
 __pycache__/
 *.pyc
 reports_out/
+.venv/
+.env
+*.py[cod]
